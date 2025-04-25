@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>معمل الميكرو</title>
+  <style>
+    .green { color: green; }
+    .red { color: red; }
+  </style>
+</head>
+<body>
+  <h2>إضافة دواء جديد</h2>
+  <form id="drugForm">
+    <label>اسم الدواء: <input type="text" name="name" required /></label><br />
+    <label>الحضانة: <input type="text" name="incubator" required /></label><br />
+    <label>مدة التحضين:
+      <select name="duration" required>
+        <option value="1">1 يوم</option>
+        <option value="2">2 يوم</option>
+        <option value="3">3 أيام</option>
+        <option value="5">5 أيام</option>
+        <option value="14">14 يوم</option>
+      </select>
+    </label><br />
+    <button type="submit">تسجيل</button>
+  </form>
+
+  <h2>الأدوية في التحضين</h2>
+  <ul id="drugList"></ul>
+
+  <h2>أدوية يجب إخراجها اليوم</h2>
+  <ul id="todayDrugs"></ul>
+
+  <script>
+    async function fetchDrugs() {
+      const res = await fetch('/drugs');
+      const data = await res.json();
+      const now = new Date();
+      document.getElementById('drugList').innerHTML = '';
+      document.getElementById('todayDrugs').innerHTML = '';
+
+      data.forEach(drug => {
+        const start = new Date(drug.start_date);
+        const end = new Date(start);
+        end.setDate(start.getDate() + drug.duration);
+
+        const remaining = (end - now) / (1000 * 60 * 60 * 24);
+        const li = document.createElement('li');
+        li.innerHTML = `${drug.name} - حضانة: ${drug.incubator} - ينتهي: ${end.toDateString()}`;
+        li.className = remaining <= 0 ? 'red' : 'green';
+
+        document.getElementById('drugList').appendChild(li);
+        if (remaining <= 0 && now.toDateString() === end.toDateString()) {
+          const todayLi = document.createElement('li');
+          todayLi.innerText = drug.name;
+          document.getElementById('todayDrugs').appendChild(todayLi);
+        }
+      });
+    }
+
+    document.getElementById('drugForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+
+      await fetch('/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+
+      form.reset();
+      fetchDrugs();
+    });
+
+    fetchDrugs();
+  </script>
+</body>
+</html>
